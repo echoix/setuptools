@@ -345,6 +345,27 @@ class TestExtModules:
         assert dist.ext_modules[0].name == "my.ext"
         assert set(dist.ext_modules[0].sources) == {"hello.c", "world.c"}
 
+    def test_pyproject_sets_define_macros(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        pyproject = Path("pyproject.toml")
+        toml_config = """
+        [project]
+        name = "test"
+        version = "42.0"
+        [tool.setuptools]
+        ext-modules = [
+          {name = "my.ext", sources = ["hello.c", "world.c"], define-macros = [ ["FIRST_MACRO_SINGLE_ELEMENT"], ["SECOND_MACRO_TWO_ELEMENT", "1"]]}
+        ]
+        """
+        pyproject.write_text(cleandoc(toml_config), encoding="utf-8")
+        with pytest.warns(pyprojecttoml._ExperimentalConfiguration):
+            dist = pyprojecttoml.apply_configuration(Distribution({}), pyproject)
+        assert len(dist.ext_modules) == 1
+        assert dist.ext_modules[0].name == "my.ext"
+        assert set(dist.ext_modules[0].sources) == {"hello.c", "world.c"}
+        assert dist.ext_modules[0].define_macros[0] == ("FIRST_MACRO_SINGLE_ELEMENT",)
+        assert dist.ext_modules[0].define_macros[1] == ("SECOND_MACRO_TWO_ELEMENT", "1")
+
 
 class TestDeprecatedFields:
     def test_namespace_packages(self, tmp_path):
